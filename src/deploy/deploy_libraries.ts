@@ -1,6 +1,6 @@
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { getDeployerAccount } from "../utils/deploy";
+import { CREATE2_SALT, getDeployerAccount } from "../utils/deploy";
 
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const { deployments } = hre;
@@ -11,35 +11,35 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         from: deployerAccount,
         args: [],
         log: true,
-        deterministicDeployment: true,
+        deterministicDeployment: CREATE2_SALT,
     });
 
     await deploy("MultiSend", {
         from: deployerAccount,
         args: [],
         log: true,
-        deterministicDeployment: true,
+        deterministicDeployment: CREATE2_SALT,
     });
 
     await deploy("MultiSendCallOnly", {
         from: deployerAccount,
         args: [],
         log: true,
-        deterministicDeployment: true,
+        deterministicDeployment: CREATE2_SALT,
     });
 
     await deploy("SignMessageLib", {
         from: deployerAccount,
         args: [],
         log: true,
-        deterministicDeployment: true,
+        deterministicDeployment: CREATE2_SALT,
     });
 
     await deploy("SafeToL2Setup", {
         from: deployerAccount,
         args: [],
         log: true,
-        deterministicDeployment: true,
+        deterministicDeployment: CREATE2_SALT,
     });
 };
 
