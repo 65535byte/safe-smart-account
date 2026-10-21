@@ -1,4 +1,4 @@
-import { arrayify, toUtf8Bytes, zeroPadValue } from "ethers";
+import { getBytes, toUtf8Bytes, zeroPadValue } from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 /**
@@ -8,7 +8,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
  *   deploy the exact same bytecode at different, reproducible addresses.
  */
 const customSalt = process.env.CUSTOM_SALT;
-const customSaltBytes = customSalt ? (customSalt.startsWith("0x") ? arrayify(customSalt) : toUtf8Bytes(customSalt)) : undefined;
+const customSaltBytes = customSalt ? (customSalt.startsWith("0x") ? getBytes(customSalt) : toUtf8Bytes(customSalt)) : undefined;
 if (customSaltBytes && customSaltBytes.length > 32) {
     throw new Error(`CUSTOM_SALT must be at most 32 bytes, got ${customSaltBytes.length}`);
 }

@@ -51,6 +51,7 @@ if (["mainnet", "rinkeby", "kovan", "goerli", "ropsten", "mumbai", "polygon"].in
 import "./src/tasks/local_verify";
 import "./src/tasks/deploy_contracts";
 import "./src/tasks/show_codesize";
+import "./src/tasks/predict_create2";
 import { BigNumber } from "@ethersproject/bignumber";
 import { DeterministicDeploymentInfo } from "hardhat-deploy/dist/types";
 
@@ -58,20 +59,57 @@ const defaultSolidityVersion = "0.7.6";
 const primarySolidityVersion = SOLIDITY_VERSION || defaultSolidityVersion;
 const soliditySettings = SOLIDITY_SETTINGS ? JSON.parse(SOLIDITY_SETTINGS) : undefined;
 
-const deterministicDeployment = (network: string): DeterministicDeploymentInfo => {
+/**
+ * Pre-signed deployment transaction of the Arachnid CREATE2 proxy. Only used when going through the built-in
+ * fallback of hardhat-deploy (see below); it is irrelevant if the factory already exists on chain.
+ */
+const ARACHNID_RAW_TX =
+    "0xf8a58085174876e800830186a08080b853604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf31ba02222222222222222222222222222222222222222222222222222222222222222a02222222222222222222222222222222222222222222222222222222222222222";
+
+/**
+ * Optional CREATE2 factory owned by you, see `docs/plan-custom-chain-8379.md`.
+ * Deploy it with `npm run create2-factory`.
+ * Once set, it takes precedence over everything else on every network; leave it unset to restore the original behaviour.
+ */
+const CREATE2_FACTORY = (process.env.CREATE2_FACTORY || "").replace(/^"|"$/g, "") || undefined;
+/** Fall back to the Arachnid CREATE2 proxy built into hardhat-deploy for unsupported chain ids. */
+const ALLOW_ARACHNID_FACTORY = process.env.ALLOW_ARACHNID_FACTORY === "1";
+
+const deterministicDeployment = (network: string): DeterministicDeploymentInfo | undefined => {
+    // If CREATE2_FACTORY is set it always wins (on every network), so that the deployed addresses
+    // stay identical across chains. Unset it to fall back to the original behaviour below.
+    if (CREATE2_FACTORY) {
+        // hardhat-deploy skips its bootstrap step as soon as the factory has code on chain,
+        // therefore `deployer`/`funding`/`signedTx` are never used here.
+        return {
+            factory: CREATE2_FACTORY,
+            deployer: CREATE2_FACTORY,
+            funding: "0",
+            signedTx: ARACHNID_RAW_TX,
+        };
+    }
+
     const info = getSingletonFactoryInfo(parseInt(network));
-    if (!info) {
-        throw new Error(`
+    if (info) {
+        return {
+            factory: info.address,
+            deployer: info.signerAddress,
+            funding: BigNumber.from(info.gasLimit).mul(BigNumber.from(info.gasPrice)).toString(),
+            signedTx: info.transaction,
+        };
+    }
+
+    if (ALLOW_ARACHNID_FACTORY) {
+        console.warn(`Safe factory not found for network ${network}, falling back to the built-in Arachnid CREATE2 factory.`);
+        return undefined;
+    }
+
+    throw new Error(`
         Safe factory not found for network ${network}. You can request a new deployment at https://github.com/safe-global/safe-singleton-factory.
+        Alternatively set CREATE2_FACTORY to your own CREATE2 proxy (see "npx hardhat deploy-create2-factory")
+        or set ALLOW_ARACHNID_FACTORY=1 to use the Arachnid proxy built into hardhat-deploy.
         For more information, see https://github.com/safe-global/safe-smart-account#replay-protection-eip-155
       `);
-    }
-    return {
-        factory: info.address,
-        deployer: info.signerAddress,
-        funding: BigNumber.from(info.gasLimit).mul(BigNumber.from(info.gasPrice)).toString(),
-        signedTx: info.transaction,
-    };
 };
 
 const userConfig: HardhatUserConfig = {
